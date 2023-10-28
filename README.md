@@ -5,6 +5,7 @@ This repository contains an SQL analysis of Bitcoin data from 2014-04-09 to 2022
 ####################
 Table Structure
 ####################
+
 The Bitcoin data is stored in a table named bitcoin_data. 
 
 ####################
