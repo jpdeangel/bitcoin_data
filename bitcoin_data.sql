@@ -73,3 +73,37 @@ FROM bitcoin_data;
 
 SELECT avg(tweets) AS avg_daily_tweets
 FROM bitcoin_data;
+
+---yearly market cap increase
+WITH YearlyMarketCap AS (
+    SELECT
+        EXTRACT(YEAR FROM trans_date) AS year,
+        SUM(marketcap) AS yearly_market_cap
+    FROM
+        bitcoin_data
+    WHERE
+        EXTRACT(YEAR FROM trans_date) BETWEEN 2014 AND 2022
+    GROUP BY
+        year
+)
+SELECT
+    year,
+    yearly_market_cap,
+    ((yearly_market_cap - LAG(yearly_market_cap) OVER (ORDER BY year)) / LAG(yearly_market_cap) OVER (ORDER BY year)) * 100 AS yoy_growth_percentage
+FROM
+    YearlyMarketCap
+ORDER BY
+    year;
+	
+---how tweets influence market cap
+
+SELECT
+    DATE_TRUNC('month', trans_date) AS month,
+    SUM(tweets) AS total_tweets,
+    AVG(marketcap) AS average_market_cap
+FROM
+    bitcoin_data
+GROUP BY
+    month
+ORDER BY
+    month;
