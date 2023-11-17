@@ -1,9 +1,8 @@
-/*
+ /*
 Analysis of bitcoin data taken from 2014-04-09 until 2022-12-22
 */
 
----Creating the table from bitcoin_data.csv
-
+--- Creating the table from bitcoin_data.csv
 CREATE TABLE bitcoin_data(trans_date date,
 					 priceUSD float(6),
 					 code_size integer,
@@ -23,25 +22,20 @@ CREATE TABLE bitcoin_data(trans_date date,
 					 activeaddresses integer,
 					 top100cap numeric(5,3)
 					);
----copying data from bitcoin_data.csv
-
+--- Copying data from bitcoin_data.csv
 COPY bitcoin_data
 FROM '/Users/justindeangel/Downloads/bitcoin_data.csv'
 WITH (FORMAT CSV,HEADER);
 
----using SELECT * FROM to check out if the data needs to be cleaned. 
----the data is actually really clean to work with. 
-
+--- Check initial data for cleanliness
 SELECT * FROM bitcoin_data;
 
----testing the significance of code size per amount of transactions 
-
+--- Analyzing code size in relation to transaction volume
 SELECT trans_date, code_size, transactions, code_size / transactions AS difficulty
 FROM bitcoin_data
 ORDER BY difficulty DESC;
 
---seeing with the daily cost of transactions are with the median transaction fee
-
+--- Calculating daily transaction cost based on median fee
 SELECT 	trans_date, 
 		median_transaction_fee, 
 		transactions, 
@@ -49,32 +43,27 @@ SELECT 	trans_date,
 FROM bitcoin_data
 ORDER BY daily_cost;
 
----comparing the average trancation to the median transaction alue
-
+--- Comparing average and median transaction values
 SELECT trans_date, sentinusd / transactions AS average_transaction, mediantransactionvalue
 FROM bitcoin_data;
 
----finding the average price of bitcoin from 2014 - 2022
-
+--- Determining average Bitcoin price from 2014 to 2022
 SELECT avg(priceusd) AS avg_price
 FROM bitcoin_data;
 
----computing the total number of transactions from 2014 - 2022
-
+--- Summing total transactions from 2014 to 2022
 SELECT sum(transactions) AS total_transactions
 FROM bitcoin_data;
 
----segregating the max market cap of bitcoin
-
+--- Identifying the peak market capitalization
 SELECT max(marketcap) AS max_cap
 FROM bitcoin_data;
 
----on average, how many people talk about bitcoin?
-
+--- Calculating average daily tweet volume
 SELECT avg(tweets) AS avg_daily_tweets
 FROM bitcoin_data;
 
----yearly market cap increase
+--- Assessing year-over-year market cap growth
 WITH YearlyMarketCap AS (
     SELECT
         EXTRACT(YEAR FROM trans_date) AS year,
@@ -95,8 +84,7 @@ FROM
 ORDER BY
     year;
 	
----how tweets influence market cap
-
+--- Examining how tweet volume impacts market cap
 SELECT
     DATE_TRUNC('month', trans_date) AS month,
     SUM(tweets) AS total_tweets,
@@ -107,3 +95,95 @@ GROUP BY
     month
 ORDER BY
     month;
+
+--- Analyzing yearly influence of tweets on Bitcoin's average price
+SELECT
+    EXTRACT(YEAR FROM trans_date) AS year,
+    SUM(tweets) AS total_tweets,
+    AVG(priceUSD) AS average_price
+FROM
+    bitcoin_data
+GROUP BY
+    year
+ORDER BY
+    year;
+	
+--- Exploring the relationship between Google Trends and Bitcoin price volatility
+WITH MonthlyVolatility AS (
+    SELECT
+        DATE_TRUNC('month', trans_date) AS month,
+        STDDEV(priceUSD) AS price_volatility
+    FROM
+        bitcoin_data
+    GROUP BY
+        month
+)
+SELECT
+    m.month,
+    m.price_volatility,
+    AVG(b.google_trends) AS avg_google_trends
+FROM
+    MonthlyVolatility m
+JOIN
+    bitcoin_data b ON DATE_TRUNC('month', b.trans_date) = m.month
+GROUP BY
+    m.month, m.price_volatility
+ORDER BY
+    m.month;
+
+--- Tracking monthly market cap changes in percentage
+WITH MonthlyData AS (
+    SELECT
+        DATE_TRUNC('month', trans_date) AS month,
+        SUM(marketcap) AS monthly_market_cap
+    FROM
+        bitcoin_data
+    GROUP BY
+        month
+)
+SELECT
+    month,
+    monthly_market_cap,
+    (monthly_market_cap - LAG(monthly_market_cap) OVER (ORDER BY month)) / LAG(monthly_market_cap) OVER (ORDER BY month) * 100 AS month_over_month_change
+FROM
+    MonthlyData
+ORDER BY
+    month;
+	
+--- Correlating transaction volume with market cap
+SELECT
+    CORR(transactions, marketcap) AS transactions_marketcap_correlation
+FROM
+    bitcoin_data;
+	
+--- Comparing monthly average transaction values with mining profitability
+SELECT
+    DATE_TRUNC('month', trans_date) AS month,
+    AVG(transactionvalue) AS avg_transaction_value,
+    AVG(mining_profitability) AS avg_mining_profitability
+FROM
+    bitcoin_data
+GROUP BY
+    month
+ORDER BY
+    avg_mining_profitability DESC;
+	
+--- Yearly active address growth rate
+
+WITH YearlyActiveAddresses AS (
+    SELECT
+        EXTRACT(YEAR FROM trans_date) AS year,
+        AVG(activeaddresses) AS avg_active_addresses
+    FROM
+        bitcoin_data
+    GROUP BY
+        year
+)
+SELECT
+    year,
+    avg_active_addresses,
+    (avg_active_addresses - LAG(avg_active_addresses) OVER (ORDER BY year)) / LAG(avg_active_addresses) OVER (ORDER BY year) * 100 AS yoy_growth_rate
+FROM
+    YearlyActiveAddresses
+ORDER BY
+    year;
